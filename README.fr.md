@@ -1,5 +1,5 @@
-# trucsle
-
-[**EN** <img src="gb.svg" width=20> English</img>](README.md)
+||||
+|:---|---|---:|
+|<h1>trucsle</h1>|`                                           `|[<img src="flag-gb.svg" height="20"/> ![en](lang-en-blue.svg) *English*](README.md)|
 
 Objets divers pour le jeu de rôle en ligne [Landes Eternelles](http://www.landes-eternelles.com/).
