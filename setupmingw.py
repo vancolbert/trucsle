@@ -442,7 +442,7 @@ def build_openal(p, h, i):
     x = '-DLIBTYPE=STATIC -DALSOFT_EXAMPLES=OFF -DALSOFT_INSTALL_EXAMPLES=OFF -DALSOFT_UTILS=OFF'.split()
     build_with_cmake(p, h, i, *x)
 def build_sdl_image(p, h, i):
-    build_with_autotools(p, h, i, 'CPPFLAGS=-I{i}/include -Wno-incompatible-pointer-types')
+    build_with_autotools(p, h, i, f'CPPFLAGS=-I{i}/include -Wno-incompatible-pointer-types')
 def build_libs():
     h, i = g.a.host, g.a.sysroot
     g.cross_env = pj(i, default_cross_script_name)
