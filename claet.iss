@@ -1,4 +1,4 @@
-#define v 20240914
+#define v 20240928
 [Setup]
 AppName=Landes Eternelles 1.9.5 claet/test
 AppVersion={#v}
@@ -13,7 +13,7 @@ AlwaysShowDirOnReadyPage=yes
 MissingMessagesWarning=yes
 NotRecognizedMessagesWarning=yes
 UsePreviousAppDir=no
-AppPublisher=L'Association d'Hommes Bleus de Peau Foncée On Dirait Violette Même
+AppPublisher=L'Association d'Hommes Bleus qui Sans Honte Portent un Pantalon Vert
 AppPublisherURL=https://github.com/vancolbert/claet
 SetupIconFile=claet.ico
 [Files]
