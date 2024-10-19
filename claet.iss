@@ -1,4 +1,4 @@
-#define v 20241005
+#define v 20241019
 [Setup]
 AppName=Landes Eternelles 1.9.5 claet/test
 AppVersion={#v}
@@ -13,7 +13,7 @@ AlwaysShowDirOnReadyPage=yes
 MissingMessagesWarning=yes
 NotRecognizedMessagesWarning=yes
 UsePreviousAppDir=no
-AppPublisher=L'Association d'Hommes Bleus Vêtus de Chemises Brillantes comme une Banane au Soleil
+AppPublisher=L'Association d'Hommes Bleus qui Portent des Bottes Oranges pour se Sentir en Sécurité
 AppPublisherURL=https://github.com/vancolbert/claet
 SetupIconFile=claet.ico
 [Files]
