@@ -2,6 +2,7 @@
 import sys, os, argparse, subprocess, tempfile, shutil, collections, time, re
 from os.path import join as pj, basename, dirname, realpath
 #cf https://sourceforge.net/p/mingw-w64/wiki2/Build%20a%20native%20Windows%2064-bit%20gcc%20from%20Linux%20(including%20cross-compiler)/
+#cf archlinux mingw-w64-* PKGBUILD
 base_pkgs = '''
 binutils=https://ftp.gnu.org/gnu/binutils/binutils-2.43.tar.xz
 mingw-w64=https://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-release/mingw-w64-v12.0.0.tar.bz2
@@ -126,12 +127,11 @@ def run(*a, shell=0):
     info('`b%s`G Command completed successfully', ft)
 def report():
     a, s = g.a, g.a.src
-    info('Cross compilation host: `G%s', a.host)
+    info('Cross compilation for host: `G%s', a.host)
     info('  Source path:     `cs`0=`w%s', s)
     info('  Build path:        `w%s', a.build)
     info('  Install sysroot:   `w%s', a.sysroot)
-    if a.jobs > 1:
-        info('Maximum parallel jobs (when safe): `Y%d', a.jobs)
+    info('`yMaximum parallel jobs: `W%d', a.jobs)
     for k in 'CFLAGS', 'CXXFLAGS':
         if v := os.environ.get(k):
             info('  `g%-8s`0 = `w%s', k, v)
@@ -288,8 +288,8 @@ def make(*a, parallel_safe=1, unless=None, skip_on_built_o=0):
     run(*c, *a)
 def build_binutils(h, i):
     push_build('binutils')
-    configure('--prefix='+i, '--target='+h, '--disable-multilib')
-    make(unless='ld/ld-new')
+    configure('--prefix='+i, '--target='+h, '--disable-multilib', '--enable-plugins', '--enable-deterministic-archives', '--disable-nls', '--disable-werror')
+    make('-O', unless='ld/ld-new')
     make('install', unless=i+'/bin/'+h+'-objdump')
     pop_build()
 def add_to_env_path(p):
@@ -304,7 +304,7 @@ def build_mingw_headers(h, i):
     n = 'mingw-w64-headers'
     p = ensure_pkg('mingw-w64')
     push_build(n, src=pj(p.src, n))
-    configure(f'--prefix={i}/{h}', '--host='+h)
+    configure(f'--prefix={i}/{h}', '--host='+h, '--enable-sdk=all')
     make('install', unless=f'{i}/{h}/include/scardssp_i.c')
     pop_build()
 def get_mark_path(n):
@@ -322,16 +322,22 @@ def build_gcc_stage1(h, i):
     if p := have_mark(m):
         warn('Skipping gcc %s because mark exists: %s', m, p)
     else:
-        configure('--prefix='+i, '--target='+h, '--disable-multilib', '--enable-languages=c,c++')
+        configure('--prefix='+i, '--target='+h, f'--libexecdir={i}/lib', '--enable-languages=c,c++,lto', '--enable-shared', '--enable-static', '--enable-threads=posix', '--enable-fully-dynamic-string', '--enable-libstdcxx-time=yes', '--enable-libstdcxx-filesystem-ts=yes', '--enable-cloog-backend=isl', '--enable-libgomp', '--disable-multilib', '--disable-sjlj-exceptions')
         make('all-gcc')
         make('install-gcc', parallel_safe=0)
         mark_done(m)
     pop_build()
 def build_mingw(h, i):
+    m = 'crt'
     push_build('mingw-w64')
-    configure(f'--prefix={i}/{h}', '--host='+h)
-    make(parallel_safe=0, unless='mingw-w64-crt/lib32/libsynchronization.a')
-    make('install', unless=f'{i}/{h}/lib/libmingwthrd.a')
+    if p := have_mark(m):
+        warn('Skipping mingw-w64 %s because mark exists: %s', m, p)
+    else:
+        d, e = ('64 32' if 'i686' in h else '32 64').split()
+        configure(f'--prefix={i}/{h}', '--host='+h, '--enable-wildcard', '--disable-lib'+d, '--enable-lib'+e)
+        make('-O')
+        make('install')
+        mark_done(m)
     pop_build()
 def build_gcc_stage2(h, i):
     m = 'stage2'
@@ -343,20 +349,30 @@ def build_gcc_stage2(h, i):
         make('install')
         mark_done(m)
     pop_build()
+def build_winpthreads(h, i):
+    n = 'winpthreads'
+    p = ensure_pkg('mingw-w64')
+    push_build(n, src=pj(p.src, 'mingw-w64-libraries', n))
+    configure(f'--prefix={i}/{h}', '--host='+h, '--enable-static', '--enable-shared')
+    make()
+    make('install')
+    pop_build()
 def allow_execution(p):
     os.chmod(p, 0o755)
 def write_env_script(h, i):
     s = f'''#!/bin/sh
 h={h}
-i={i}
+i="{i}"
 export HOST=$h
-export SYSROOT=$i
+export SYSROOT="$i"
 export CC=$h-gcc
 export CXX=$h-g++
 export CPP=$h-cpp
 export RANLIB=$h-ranlib
 export AR=$h-ar
 export STRIP=$h-strip
+export CPPFLAGS="-I$i/include"
+export LDFLAGS="-L$i/lib"
 export PKG_CONFIG_PATH="$i/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$i/lib/pkgconfig"
 echo "$PATH" | grep -sqF "$i/bin" || export PATH="$i/bin:$PATH"
@@ -398,6 +414,7 @@ def build_compiler():
     build_mingw_headers(h, i)
     build_gcc_stage1(h, i)
     build_mingw(h, i)
+    build_winpthreads(h, i)
     build_gcc_stage2(h, i)
     write_env_script(h, i)
     write_cmake_toolchain(h, i)
@@ -423,10 +440,22 @@ def build_libxml2(p, h, i):
     make(unless='libxml2_la-xmlschemas.o')
     make('install', unless=i+'/lib/libxml2.a')
 def build_libpng(p, h, i):
-    x = [f'CC={h}-gcc', f'STRIP={h}-strip', f'CPPFLAGS=-I{i}/include', f'LDFLAGS=-L{i}/lib']
-    configure('--enable-static', *x)
+    configure('--enable-static')
     make(unless='libpng.sym')
     make('install', unless=i+'/lib/libpng.a')
+def build_expat(p, h, i):
+    configure('--enable-static', '--disable-shared')
+    make()
+    make('install')
+def build_mpfr(p, h, i):
+    configure('--enable-static', '--disable-shared', '--enable-thread-safe')
+    make()
+    make('install')
+def build_gdb(p, h, i):
+    x = '--without-guile --without-python --with-expat --disable-nls --disable-binutils --disable-gas --disable-ld --disable-gprof'.split()
+    configure('--target='+h, *x)
+    make()
+    make('install')
 def uses_cmake(p):
     return exists(pj(p.src, 'CMakeLists.txt'))
 def cmake(*a):
