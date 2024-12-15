@@ -322,7 +322,11 @@ def build_gcc_stage1(h, i):
     if p := have_mark(m):
         warn('Skipping gcc %s because mark exists: %s', m, p)
     else:
-        configure('--prefix='+i, '--target='+h, f'--libexecdir={i}/lib', '--enable-languages=c,c++,lto', '--enable-shared', '--enable-static', '--enable-threads=posix', '--enable-fully-dynamic-string', '--enable-libstdcxx-time=yes', '--enable-libstdcxx-filesystem-ts=yes', '--enable-cloog-backend=isl', '--enable-libgomp', '--disable-multilib', '--disable-sjlj-exceptions')
+        pushd(g.cur_src)
+        run('contrib/download_prerequisites')
+        popd()
+        x = '--enable-languages=c,c++,lto --with-tune=generic --enable-serial-configure --disable-bootstrap --disable-stage1-checking --enable-shared --enable-static --enable-threads=posix --enable-fully-dynamic-string --enable-libstdcxx-time=yes --enable-libstdcxx-filesystem-ts=yes --enable-cloog-backend=isl --enable-libgomp --disable-multilib --disable-sjlj-exceptions --disable-win32-registry --disable-libunwind-exceptions --with-dwarf2 --enable-mingw-wildcard --enable-large-address-aware'.split()
+        configure('--prefix='+i, '--target='+h, f'--libexecdir={i}/lib', *x)
         make('all-gcc')
         make('install-gcc', parallel_safe=0)
         mark_done(m)
